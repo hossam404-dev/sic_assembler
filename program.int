@@ -1,0 +1,14 @@
+Intermediate File:
+Address  Label      Opcode   Operand    Source
+001000   STRCPY     START    1000       STRCPY   START 1000
+001000   FIRST      LDX      ZERO       FIRST    LDX   ZERO
+001003   MOVECH     LDCH     STR1,X     MOVECH   LDCH  STR1,X
+001006              STCH     STR2,X              STCH  STR2,X
+001009              TIX      ELEVEN              TIX   ELEVEN
+00100C              JLT      MOVECH              JLT   MOVECH
+                                        
+00100F   STR1       BYTE     C'TEST STRING' STR1     BYTE  C'TEST STRING'
+00100F   STR2       RESB     11         STR2     RESB  11
+00101A   ZERO       WORD     0          ZERO     WORD  0
+00101D   ELEVEN     WORD     11         ELEVEN   WORD  11
+001020              END      FIRST               END   FIRST
