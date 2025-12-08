@@ -2,6 +2,22 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Python: Run main.py (export optable)",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/main.py",
+            "console": "integratedTerminal",
+            "args": [
+                "example/program.txt",
+                "--export-optable"
+            ]
+        }
+    ]
+}
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
             "name": "Run SIC Assembler",
             "type": "python",
             "request": "launch",
