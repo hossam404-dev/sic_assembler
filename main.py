@@ -2,6 +2,35 @@ import sys
 import os
 from pass1 import pass1
 from pass2 import pass2
+from optable import OPTABLE
+from utils import parse_line
+
+
+def export_optable(input_path: str, output_path: str) -> int:
+
+    if not os.path.exists(input_path):
+        raise FileNotFoundError(f"Input file not found: {input_path}")
+
+
+    DIRECTIVES = {"START", "END", "BYTE", "WORD", "RESB", "RESW", "BASE", "NOBASE", "ORG", "EQU"}
+    seen = []
+    with open(input_path, "r", encoding="utf-8") as f:
+        for line in f:
+            label, opcode, operand = parse_line(line)
+            if opcode:
+                m = opcode.upper()
+
+                if m in DIRECTIVES:
+                    continue
+                if m not in seen:
+                    seen.append(m)
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        for m in seen:
+            code = OPTABLE.get(m, "")
+            f.write(f"{m} {code}\n")
+
+    return len(seen)
 
 def print_symbol_table(symbols):
     print("Symbol Table:")
@@ -29,13 +58,13 @@ def assemble(path):
     out_path = base + ".lst"
     sym_path = base + ".sym"
     int_path = base + ".int"
-    # Write symbol table to separate file
+
     with open(sym_path, "w") as sym:
         sym.write("Symbol Table:\n")
         sym.write("{:<10} {:>6}\n".format("Label", "Address"))
         for label in sorted(symbols):
             sym.write("{:<10} {:06X}\n".format(label, symbols[label]))
-    # Write listing to .lst file
+
     with open(out_path, "w") as o:
         o.write("Listing:\n")
         for addr, obj, raw in listing:
@@ -45,7 +74,7 @@ def assemble(path):
                 obj_str = obj if obj and all(c in '0123456789ABCDEF' for c in obj.upper()) else 'NULL'
                 o.write(f"{addr:06X}\t{raw}\t{obj_str}\n")
         o.write(f"\nProgram Length: {program_length:06X}\n")
-    # Write intermediate file
+    
     with open(int_path, "w") as f:
         f.write("Intermediate File:\n")
         f.write("{:<8} {:<10} {:<8} {:<10} {}\n".format("Address", "Label", "Opcode", "Operand", "Source"))
@@ -60,7 +89,24 @@ def assemble(path):
     print("Intermediate file written:", int_path)
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Usage: python main.py program.txt")
+    if len(sys.argv) < 2:
+        print("Usage: python main.py program.txt [--export-optable]")
         sys.exit(1)
-    assemble(sys.argv[1])
+    path = sys.argv[1]
+    assemble(path)
+
+    if "--export-optable" in sys.argv or "-e" in sys.argv:
+        base = os.path.splitext(os.path.basename(path))[0]
+        out = base + ".optable"
+        try:
+            n = export_optable(path, out)
+            print(f"Wrote {out} with {n} mnemonics")
+            try:
+                print("\nOptable:")
+                with open(out, "r", encoding="utf-8") as fo:
+                    for line in fo:
+                        print(line.rstrip())
+            except Exception as e:
+                print(f"Could not read {out}: {e}")
+        except FileNotFoundError as e:
+            print(e)
