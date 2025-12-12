@@ -14,7 +14,6 @@ def parse_line(line):
     return parts[0].upper(), parts[1].upper(), parts[2].upper()
 
 def byte_length_operand(operand):
-    operand = operand.strip().replace("'", "")
     if operand is None:
         return 0
     op = operand.strip()
