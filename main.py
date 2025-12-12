@@ -1,7 +1,7 @@
 import sys
 import os
 from pass1 import pass1
-from pass2 import pass2
+from pass2 import pass2, generate_object_program
 from optable import OPTABLE
 from utils import parse_line
 
@@ -32,6 +32,26 @@ def export_optable(input_path: str, output_path: str) -> int:
 
     return len(seen)
 
+def format_object_record(record):
+    """Format object program record with ^ separators"""
+    if record.startswith("H"):
+        program_name = record[1:-12]
+        start_addr = record[-12:-6]
+        length = record[-6:]
+        return f"{record[0]}^{program_name}^{start_addr}^{length}"
+    elif record.startswith("T"):
+        start_addr = record[1:7]
+        byte_count = record[7:9]
+        obj_code = record[9:]
+        return f"{record[0]}^{start_addr}^{byte_count}^{obj_code}"
+    elif record.startswith("M"):
+        addr = record[1:7]
+        length = record[7:9]
+        return f"{record[0]}^{addr}^{length}"
+    elif record.startswith("E"):
+        return f"{record[0]}^{record[1:]}"
+    return record
+
 def print_symbol_table(symbols):
     print("Symbol Table:")
     print("{:<10} {:>6}".format("Label", "Address"))
@@ -51,9 +71,15 @@ def assemble(path):
         lines = [x.rstrip("\n") for x in f]
     intermediate, symbols, start_addr, program_length = pass1(lines)
     listing = pass2(intermediate, symbols)
+    object_records = generate_object_program(intermediate, symbols, start_addr, program_length, 
+                                             os.path.splitext(os.path.basename(path))[0])
     print_symbol_table(symbols)
     print_listing(listing)
     print(f"\nProgram Length: {program_length:06X}")
+    print("\nObject Program:")
+    for record in object_records:
+        print(format_object_record(record))
+    
     base = os.path.splitext(os.path.basename(path))[0]
     out_path = base + ".lst"
     sym_path = base + ".sym"
@@ -74,6 +100,9 @@ def assemble(path):
                 obj_str = obj if obj and all(c in '0123456789ABCDEF' for c in obj.upper()) else 'NULL'
                 o.write(f"{addr:06X}\t{raw}\t{obj_str}\n")
         o.write(f"\nProgram Length: {program_length:06X}\n")
+        o.write("\nObject Program:\n")
+        for record in object_records:
+            o.write(format_object_record(record) + "\n")
     
     with open(int_path, "w") as f:
         f.write("Intermediate File:\n")
@@ -90,23 +119,51 @@ def assemble(path):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python main.py program.txt [--export-optable]")
-        sys.exit(1)
-    path = sys.argv[1]
-    assemble(path)
-
-    if "--export-optable" in sys.argv or "-e" in sys.argv:
-        base = os.path.splitext(os.path.basename(path))[0]
-        out = base + ".optable"
-        try:
-            n = export_optable(path, out)
-            print(f"Wrote {out} with {n} mnemonics")
+        sys.argv.append("--all-examples")
+    
+    if sys.argv[1] == "--all-examples":
+        example_dir = "example"
+        if not os.path.isdir(example_dir):
+            print(f"Error: {example_dir} directory not found")
+            sys.exit(1)
+        
+        txt_files = [f for f in os.listdir(example_dir) if f.endswith(".txt")]
+        if not txt_files:
+            print(f"No .txt files found in {example_dir}")
+            sys.exit(1)
+        
+        print(f"Processing {len(txt_files)} program files from {example_dir}:\n")
+        for txt_file in sorted(txt_files):
+            input_path = os.path.join(example_dir, txt_file)
+            print(f"{'='*60}")
+            print(f"Assembling: {input_path}")
+            print(f"{'='*60}")
             try:
-                print("\nOptable:")
-                with open(out, "r", encoding="utf-8") as fo:
-                    for line in fo:
-                        print(line.rstrip())
+                assemble(input_path)
+                base = os.path.splitext(txt_file)[0]
+                out = base + ".optable"
+                n = export_optable(input_path, out)
+                print(f"Wrote {out} with {n} mnemonics")
             except Exception as e:
-                print(f"Could not read {out}: {e}")
-        except FileNotFoundError as e:
-            print(e)
+                print(f"Error assembling {input_path}: {e}")
+            print()
+        print("All programs assembled successfully!")
+    else:
+        path = sys.argv[1]
+        assemble(path)
+
+        if "--export-optable" in sys.argv or "-e" in sys.argv:
+            base = os.path.splitext(os.path.basename(path))[0]
+            out = base + ".optable"
+            try:
+                n = export_optable(path, out)
+                print(f"Wrote {out} with {n} mnemonics")
+                try:
+                    print("\nOptable:")
+                    with open(out, "r", encoding="utf-8") as fo:
+                        for line in fo:
+                            print(line.rstrip())
+                except Exception as e:
+                    print(f"Could not read {out}: {e}")
+            except FileNotFoundError as e:
+                print(e)
